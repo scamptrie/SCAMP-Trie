@@ -1,0 +1,29 @@
+# Auto-detect text files and normalize to LF on commit
+* text=auto
+
+# Explicitly mark source files as text
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.h text eol=lf
+*.c text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.txt text eol=lf
+*.cff text eol=lf
+Makefile text eol=lf
+makefile text eol=lf
+LICENSE text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Extensionless data files
+ratio/* text eol=lf
+
+# Binary files (data files)
+*.fib binary
+*.map binary
+*.tr binary

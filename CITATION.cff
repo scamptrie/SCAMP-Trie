@@ -1,0 +1,58 @@
+cff-version: 1.2.0
+message: "If you use SCAMP-Trie in your research, please cite the paper below."
+title: "Trie-Structure-Guided Compression, Allocation, and Mapping for Storage-Efficient IPv6 Lookup Pipelines"
+authors:
+  - given-names: Donghong
+    family-names: Jiang
+    affiliation: "Computer Network Information Center, Chinese Academy of Sciences; University of Chinese Academy of Sciences"
+    email: jiangdonghong@cnic.cn
+  - given-names: Zhenhao
+    family-names: Yuan
+    affiliation: "Computer Network Information Center, Chinese Academy of Sciences; University of Chinese Academy of Sciences"
+    email: zhyuan@cnic.cn
+  - given-names: Yanbiao
+    family-names: Li
+    affiliation: "Computer Network Information Center, Chinese Academy of Sciences; University of Chinese Academy of Sciences"
+    email: lybmath@cnic.cn
+  - given-names: Shi
+    family-names: Meng
+    affiliation: "Computer Network Information Center, Chinese Academy of Sciences; University of Chinese Academy of Sciences"
+    email: shimeng0519@gmail.com
+  - given-names: Yuxuan
+    family-names: Chen
+    affiliation: "University of Chinese Academy of Sciences"
+    email: chenyuxuan@cnic.cn
+  - given-names: Taiji
+    family-names: Chen
+    affiliation: "Peking University"
+    email: "2400010738@stu.pku.edu.cn"
+  - given-names: Xian
+    family-names: Yu
+    affiliation: "Computer Network Information Center, Chinese Academy of Sciences"
+    email: yuxian@cnic.cn
+  - given-names: Gaogang
+    family-names: Xie
+    affiliation: "Computer Network Information Center, Chinese Academy of Sciences; University of Chinese Academy of Sciences"
+    email: xie@cnic.cn
+preferred-citation:
+  type: conference-paper
+  title: "Trie-Structure-Guided Compression, Allocation, and Mapping for Storage-Efficient IPv6 Lookup Pipelines"
+  authors:
+    - given-names: Donghong
+      family-names: Jiang
+    - given-names: Zhenhao
+      family-names: Yuan
+    - given-names: Yanbiao
+      family-names: Li
+    - given-names: Shi
+      family-names: Meng
+    - given-names: Yuxuan
+      family-names: Chen
+    - given-names: Taiji
+      family-names: Chen
+    - given-names: Xian
+      family-names: Yu
+    - given-names: Gaogang
+      family-names: Xie
+  conference: "ACM SIGCOMM 2026"
+  year: 2026

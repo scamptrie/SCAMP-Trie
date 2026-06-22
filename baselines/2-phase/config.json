@@ -1,0 +1,6 @@
+{
+  "num_layers": 32,
+  "per_node_memory": 32,
+  "extra_space": 0,
+  "output_subdir": "2-phase"
+}
