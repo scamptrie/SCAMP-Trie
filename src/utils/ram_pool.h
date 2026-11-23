@@ -13,6 +13,7 @@ class RAMPool {
 public:
     RAMPool(bool enable_hash);
     ~RAMPool();
+    void use_basic_mapping();
 
     /**
      * Set total memory size for all stages

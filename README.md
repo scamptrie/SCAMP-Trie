@@ -39,7 +39,8 @@ scamptrie/
 ├── data/                   # IPv6 FIB datasets (36+ FIBs, 4 network scenarios)
 ├── scripts/                # Evaluation and analysis tools
 │   ├── launch.sh           # Master benchmark runner
-│   ├── util.py             # Storage utilization calculator
+│   ├── util.py             # Storage utilization and stage comparison CSVs
+│   ├── plot_storage.py     # Plot utilization and stage usage from those CSVs
 │   ├── gen_ratio.py        # Storage allocation ratio optimizer
 │   ├── calc_ratio.py       # Closed-form ratio calculator
 │   ├── calc_num_prefixes.py # Prefix capacity comparison
@@ -60,7 +61,8 @@ scamptrie/
 - **OpenMP**: Required for simulated annealing (parallel evaluation)
 - **Python 3**: Required for analysis scripts and Python-based baselines
 - **GNU Make**: Build orchestration
-- **Bash**: Shell scripts for evaluation
+- **Bash 4+**: Shell scripts for evaluation
+- **Matplotlib**: Only required for the figures (e.g. `python3 -m pip install matplotlib` in a Python environment)
 
 ## Quick Start
 
@@ -108,8 +110,9 @@ make -C src debug
 # Build for profiling (gprof)
 make -C src profile
 
-# Build SCAMP-Trie-Basic (without hash and free-child features)
+# Build the executable shared by both mapping modes
 make -C src scamptrie-basic
+bash scripts/launch.sh -a scamptrie-basic -d rrc00_v6
 ```
 
 ### LPM Correctness Verification
@@ -171,26 +174,17 @@ python3 scripts/util.py treebitmap
 # Results are saved to result/<algo>.csv
 ```
 
-### Optimized Allocation Ratios
+### Recomputing Allocation Ratios
 
-For algorithms supporting optimized memory allocation:
-
-```bash
-# Generate optimal allocation ratios
-python3 scripts/gen_ratio.py treebitmap
-python3 scripts/gen_ratio.py pop1
-
-# Then re-compute utilization with optimized ratios
-python3 scripts/util.py treebitmap   # Uses ratio/treebitmap if available
-```
-
-### Multi-Algorithm Comparison
+The artifact includes the ratios used in the paper. To derive the Basic allocation independently, first generate its mapping on the four training FIBs, then run the closed-form calculator. Writing the result to a separate directory lets you compare it with the shipped ratio.
 
 ```bash
-# Generate detailed cross-algorithm comparison
-python3 scripts/util.py --detail
-# Result saved to result/detail.csv
+bash scripts/launch.sh --paper -a scamptrie-basic -j 2
+python3 scripts/calc_ratio.py scamptrie-basic --ratio-dir result/derived-ratio
+diff -w ratio/scamptrie-basic result/derived-ratio/scamptrie-basic
 ```
+
+The same calculator accepts `treebitmap` and `pop1` once their four raw outputs exist. Its default applies the artifact's 2% minimum-stage allocation procedure. The older `gen_ratio.py` provides an alternative search and can produce different ratios.
 
 ## Generating Optimized Weights (Simulated Annealing)
 
@@ -201,7 +195,8 @@ SCAMP-Trie uses simulated annealing to find optimal per-stage memory allocation 
 make quick-test
 
 # Full annealing (300 rounds, 4 training FIBs)
-make weights
+# Clear objects compiled with the 100-round smoke-test setting first.
+make -C src clean && make weights
 # or: make -C src annealing-scamptrie
 
 # 100 rounds on the training set with timing
@@ -218,36 +213,43 @@ make -C src ANNEAL_MAX_ROUND=500 annealing-scamptrie
 
 The paper evaluates SCAMP-Trie against 9 baselines on 36 IPv6 FIBs across 4 network scenarios (IXP, ISP edge, cloud gateway, host).
 
-### Step-by-Step Reproduction
+### Four representative FIBs
+
+From the repository root on Linux, run:
 
 ```bash
-# 1. Build all algorithms
-make all
-
-# 2. Run full evaluation (all algorithms, all datasets)
-#    This may take a while. Use -j N to parallelize across datasets.
-bash scripts/launch.sh -j 4
-
-# 3. Generate optimized allocation ratios for ratio-aware baselines
-python3 scripts/gen_ratio.py treebitmap
-python3 scripts/gen_ratio.py pop1
-# Note: SCAMP-Trie ratios are pre-computed in ratio/.
-# To regenerate them, run the annealing pipeline first (see Step 6).
-
-# 4. Compute storage utilization for each algorithm
-for algo in olp biolp minmax 2-phase treebitmap pop1 scamptrie; do
-    python3 scripts/util.py $algo
-done
-
-# 5. Generate detailed multi-algorithm comparison across 4 scenarios
-#    (requires rrc00, isp1_kab, AWS_256k, host-rd64 datasets in data/)
+make -j4 all &&
+bash scripts/launch.sh --paper -j 2 &&
 python3 scripts/util.py --detail
-
-# 6. (Optional) Run simulated annealing to regenerate optimized weights
-#    Quick test (~30 seconds):  make -C src annealing-test
-#    Full annealing (~70 minutes):  make weights
-make weights
 ```
+
+This runs eight implementations on four FIBs. The analysis produces ten series because Tree Bitmap and Poptrie each have both uniform and optimized allocations. The paper's Poptrie series uses the `pop1` implementation. The original C implementation can be exercised separately with `bash scripts/launch.sh -a poptrie -d sample1`. The launcher writes per-task logs to `result/logs/<algorithm>/<FIB>.log` and returns a nonzero status on failure.
+
+| FIB | Optimized total utilization | Basic total utilization |
+|---|---:|---:|
+| `rrc00_v6` | 95.55% | 51.58% |
+| `isp1_kab` | 89.45% | 71.59% |
+| `AWS_256k_v6` | 86.75% | 54.13% |
+| `host-rd64` | 87.31% | 51.47% |
+
+Read `TotalEfficiency` in `result/scamp-trie.csv` and `result/scamp-trie-basic.csv` as a fraction. The eight baseline comparison CSVs are in the same directory. Run `--detail` last before plotting. It writes separate uniform and optimized Tree Bitmap series, while the legacy standalone `util.py treebitmap` command writes its ratio-aware result to `treebitmap.csv`. In `result/detail.csv` the four FIB blocks follow the order above. Within each block, each algorithm has two rows, allocated bits followed by used bits. Stage1 in the CSV corresponds to pipeline stage S0.
+
+- **SCAMP-Trie** evaluates insertion with the published vector in `ratio/scamptrie`. The launcher writes five-line raw outputs under `output/scamptrie-opt/`. The analysis normalizes the same vector to calculate total capacity from per-stage usage and includes fixed and elastic storage. To evaluate a single FIB, use `bash scripts/launch.sh -a scamptrie-opt -d rrc00_v6` followed by `python3 scripts/util.py scamptrie-opt`. The Quick Start alias `scamptrie` uses the same weights and writes to its own output directory.
+- **SCAMP-Trie-Basic (§3.2)** maps each node to the lowest legal stage, with enough logical capacity at each stage for the entire node pool. This removes capacity pressure during mapping while keeping the node representation, hash and free-child handling shared with SCAMP-Trie. The naive allocation is computed **after mapping** from peak relative stage demand across the four training FIBs. The five-line files in `output/scamptrie-basic/` supply actual usage, and `ratio/scamptrie-basic` supplies the allocation for reporting. To evaluate a single FIB, use `bash scripts/launch.sh -a scamptrie-basic -d rrc00_v6` followed by `python3 scripts/util.py scamptrie-basic`.
+
+### Paper figures
+
+After the four-FIB sequence, run `python3 scripts/plot_storage.py`. It writes a four-FIB preview of the memory utilization comparison and the four stage-usage panels for BiOLP, 2-phase, Poptrie and SCAMP-Trie. The two SVGs are in `result/figures/`.
+
+To plot the utilization comparison across all 36 paper FIBs, run:
+
+```bash
+bash scripts/launch.sh --paper-full -j 2 &&
+python3 scripts/util.py --detail &&
+python3 scripts/plot_storage.py --full
+```
+
+The full utilization plot includes all 23 IXP, 7 ISP, 3 cloud and 3 host FIBs listed in `scripts/paper_fibs.txt`. Additional scaling datasets in `data/` are excluded. Both workflows use the shipped weights. Full annealing is only needed to perform a new weight search and `make weights` overwrites `ratio/scamptrie`.
 
 ### Key Metrics
 

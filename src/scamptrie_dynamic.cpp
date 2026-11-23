@@ -121,6 +121,8 @@ ScampTrieDynamic::~ScampTrieDynamic() {
     delete bmp_manager;
 }
 
+void ScampTrieDynamic::use_basic_mapping() { ram_pool->use_basic_mapping(); }
+
 void ScampTrieDynamic::set_ram_allocation(uint64_t total_ram, const MOOWeights& weights) { ram_pool->set_ram_allocation(total_ram, weights); }
 
 void ScampTrieDynamic::get_ram_info(uint64_t &ram_used, uint64_t &ram_allocated, uint32_t &tcam_entries) {

@@ -188,9 +188,8 @@ def main():
             datasets_data.append((n, values))
             total_usage = sum(values)
             print(f"  数据集 {dataset_name}: {n} 级流水线, 总使用量 {total_usage}")
-        except Exception as e:
-            print(f"  警告: 无法读取数据集 {dataset_name}: {e}")
-            continue
+        except (OSError, ValueError) as exc:
+            parser.exit(1, f"Cannot compute the allocation without {dataset_name}: {exc}\n")
 
     if not datasets_data:
         print("错误: 没有成功读取任何数据集")
