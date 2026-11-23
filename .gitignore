@@ -48,6 +48,7 @@ baselines/treebitmap/treebitmap
 baselines/treebitmap/treebitmap.exe
 baselines/pop1/pop1
 baselines/pop1/pop1.exe
+baselines/poptrie/poptrie
 
 # Internal-use files (excluded from public release)
 eval_readme.md

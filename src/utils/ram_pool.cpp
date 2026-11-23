@@ -36,6 +36,16 @@ RAMPool::~RAMPool() {
             delete nodes[i];
 }
 
+// Section 3.2 assigns each node to its lowest legal stage. Give each stage
+// enough logical space to hold the entire node pool. The measured usage is
+// then independent of the capacity proportions used in the offline analysis.
+void RAMPool::use_basic_mapping() {
+    ALLOC_METHOD = 0;
+    for (int i = 0; i < Bound; ++i) {
+        ram_total[i] = ram_remain[i] = uint64_t(BUCKET_SIZE) * BYTES_256b;
+    }
+}
+
 void RAMPool::set_ram_allocation(uint64_t total_ram, const MOOWeights& weights) {
     const double* _weights = weights.weights;
     double ratio_all = 0;

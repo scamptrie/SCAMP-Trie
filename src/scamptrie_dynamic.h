@@ -29,6 +29,7 @@ public:
     ScampTrieDynamic();
     ~ScampTrieDynamic();
     
+    void use_basic_mapping();
     void set_ram_allocation(uint64_t total_ram, const MOOWeights& weights);
     void get_ram_info(uint64_t &ram_used, uint64_t &ram_allocated, uint32_t &tcam_entries);
     // 仅统计流水线每级 RAM 使用（单位：字节），原有接口，保留以兼容其他调用

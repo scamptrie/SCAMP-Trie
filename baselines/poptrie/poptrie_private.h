@@ -8,6 +8,11 @@
 
 #include "buddy.h"
 #include "poptrie.h"
+#ifdef _WIN32
+#include <malloc.h>
+#else
+#include <alloca.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 

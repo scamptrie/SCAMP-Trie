@@ -91,10 +91,9 @@ annealing-fset1-100:
 		-W $(RATIO_DIR)/scamptrie_fset1_r100 >> ../results/annealing_fset1_r100.log 2>&1
 	@echo "--- /usr/bin/time (-p fields in ../results/annealing_fset1_r100.time) ---" && cat ../results/annealing_fset1_r100.time
 
-# SCAMP-Trie-Basic: same code with hash and free-child features disabled
-scamptrie-basic: CXXFLAGS += -DDISABLE_SCAMP_HASH -DDISABLE_SCAMP_FREE_CHILD
-scamptrie-basic: clean $(TARGET)
-	@echo "Built SCAMP-Trie-Basic (hash/free-child disabled)"
+# Both mapping modes share the same executable.
+scamptrie-basic: $(TARGET)
+	@echo "Use bash scripts/launch.sh -a scamptrie-basic -d <dataset> from the repository root"
 
 eval-t0: $(TARGET)
 	./$(TARGET) --eval -F $(EVAL_DIR)/rrc00_v6.fib -W $(WEIGHTS_DIR)/weights_default.txt

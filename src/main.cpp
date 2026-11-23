@@ -3,6 +3,7 @@
 #include "moo/dyn_annealing.h"
 
 #include <chrono>
+#include <cmath>
 #include <cerrno>
 #include <cstdlib>
 #include <cstdio>
@@ -146,21 +147,22 @@ static bool read_weights_from_file(const std::string& filename, MOOWeights& weig
         std::cerr << "cannot open parameter file for reading: " << filename << std::endl;
         return false;
     }
-    std::string line;
-    if (!std::getline(file, line)) {
-        std::cerr << "parameter file is empty: " << filename << std::endl;
-        file.close();
-        return false;
-    }
-    std::istringstream iss(line);
+    // Evaluation accepts both the annealer's weight vector and the historical
+    // ratio files with a leading stage count.
+    std::vector<double> values;
+    double value;
+    while (file >> value) values.push_back(value);
+    if (!file.eof()) return false;
+    size_t start = 0;
+    if (values.size() == RAM_NUM + 1 && values.front() == RAM_NUM) start = 1;
+    if (values.size() != start + RAM_NUM) return false;
+    double total = 0;
     for (int i = 0; i < RAM_NUM; ++i) {
-        if (!(iss >> weights[i])) {
-            std::cerr << "invalid parameter format in file: " << filename << std::endl;
-            file.close();
-            return false;
-        }
+        weights[i] = values[start + i];
+        if (!std::isfinite(weights[i]) || weights[i] <= 0) return false;
+        total += weights[i];
     }
-    file.close();
+    if (!std::isfinite(total)) return false;
     printf("weights loaded from: %s\n", filename.c_str());
     return true;
 }
@@ -178,6 +180,7 @@ struct EvalOptions {
     bool scamp_eval_output{false};
     std::string scamp_eval_output_dir = kScampEvalOutputDefaultDir;
     bool verify{false};
+    bool basic{false};
     std::string stats_ram_path;
     std::string stats_types_path;
     std::string stats_benchmark_path;
@@ -292,7 +295,7 @@ static nexthop_t brute_force_lpm(const std::vector<FIBEntry>& fib, const ip6_t& 
 
 /// Verify SCAMP-Trie lookup correctness against brute-force ground truth.
 /// Uses every FIB prefix's network address as a test IP (guaranteed match).
-static void verify_lookup_correctness(ScampTrieDynamic* trie,
+static bool verify_lookup_correctness(ScampTrieDynamic* trie,
                                        const std::vector<FIBEntry>& fib) {
     int n_errors = 0;
     int n_misses = 0;
@@ -326,6 +329,7 @@ static void verify_lookup_correctness(ScampTrieDynamic* trie,
         printf("  %d/%d correct  —  %d ERRORS (%d misses)\n",
                n_total - n_errors, n_total, n_errors, n_misses);
     }
+    return n_errors == 0;
 }
 
 // Single FIB: insert → reshape → optional exports (matches previous behavior).
@@ -342,8 +346,12 @@ static int eval_single_dataset(const std::string& fib_path,
 
     printf("\n=== Creating ScampTrieDynamic ===\n");
     std::unique_ptr<ScampTrieDynamic> trie(new ScampTrieDynamic());
-    trie->set_ram_allocation(kEvalTotalRam, weights);
-    printf("RAM allocation set to: %8.3lf KB\n", double(kEvalTotalRam) / KILO_BYTES);
+    if (eo.basic) {
+        trie->use_basic_mapping();
+    } else {
+        trie->set_ram_allocation(kEvalTotalRam, weights);
+        printf("RAM allocation set to: %8.3lf KB\n", double(kEvalTotalRam) / KILO_BYTES);
+    }
 
     printf("\n=== Inserting Prefixes ===\n");
     int count = 0;
@@ -389,8 +397,7 @@ static int eval_single_dataset(const std::string& fib_path,
 
     write_optional_stats_csv(trie.get(), fib_path, eo);
 
-    if (eo.verify)
-        verify_lookup_correctness(trie.get(), fib_entries);
+    if (eo.verify && !verify_lookup_correctness(trie.get(), fib_entries)) return 1;
 
     trie->print_insert_prefix_timing_stats(
         stdout, eo.stats_latency_samples_path.empty() ? nullptr : eo.stats_latency_samples_path.c_str());
@@ -483,8 +490,8 @@ static int run_dynamic_eval(const std::vector<std::string>& fib_paths,
     printf("=== Running Dynamic Mode Test ===\n");
     printf("\n=== Loading Weights for Evaluation ===\n");
 
-    MOOWeights loaded_weights;
-    if (!read_weights_from_file(param_file, loaded_weights)) {
+    MOOWeights loaded_weights{};
+    if (!eo.basic && !read_weights_from_file(param_file, loaded_weights)) {
         std::cerr << "Failed to load weights from parameter file" << std::endl;
         return 1;
     }
@@ -511,7 +518,7 @@ static int run_dynamic_gen(std::vector<std::vector<FIBEntry>>& fib_entries_all,
 
 static void print_usage(const char* program_name) {
     std::cout << "usage: " << program_name << " [options]\n\n";
-    std::cout << "Required: -W <weights_file>; at least one -F <fib_file>\n";
+    std::cout << "Required: at least one -F <fib_file>; -W <weights_file> except with --basic\n";
     std::cout << "Modes:\n";
     std::cout << "  --eval   Evaluate (load weights, insert prefixes)\n";
     std::cout << "  --gen    Generation / annealing (write optimized weights to -W)\n";
@@ -520,6 +527,7 @@ static void print_usage(const char* program_name) {
     std::cout << "-W <param_file>                  MOO weights file\n";
     std::cout << "--scamp-eval-output               5-line eval file (requires --eval, single -F)\n";
     std::cout << "--scamp-eval-output-dir <path>   base dir for 5-line file (default: " << kScampEvalOutputDefaultDir << ")\n";
+    std::cout << "--basic                          Section 3.2 mapping (single FIB evaluation)\n";
     std::cout << "--verify                         verify LPM correctness after insertion (requires --eval)\n";
     std::cout << "--stats-ram <path>\n";
     std::cout << "--stats-types <path>\n";
@@ -552,6 +560,8 @@ static int parse_argv(int argc, char** argv, AppArgv& out, const char*& err) {
             out.eval.scamp_eval_output = true;
         } else if (strcmp(argv[i], "--scamp-eval-output-dir") == 0 && i + 1 < argc) {
             out.eval.scamp_eval_output_dir = argv[++i];
+        } else if (strcmp(argv[i], "--basic") == 0) {
+            out.eval.basic = true;
         } else if (strcmp(argv[i], "--verify") == 0) {
             out.eval.verify = true;
         } else if (strcmp(argv[i], "--stats-ram") == 0 && i + 1 < argc) {
@@ -575,7 +585,11 @@ static int parse_argv(int argc, char** argv, AppArgv& out, const char*& err) {
         err = "at least one FIB file (-F) is required";
         return 1;
     }
-    if (out.weights_path.empty()) {
+    if (out.eval.basic && (!out.eval_mode || out.gen_mode || out.fib_paths.size() != 1 || !out.weights_path.empty())) {
+        err = "--basic requires --eval, one -F, and no mapping weights (-W)";
+        return 1;
+    }
+    if (!out.eval.basic && out.weights_path.empty()) {
         err = "parameter file (-W) is required";
         return 1;
     }
