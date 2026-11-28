@@ -68,3 +68,4 @@ gmon.out
 ._.DS_Store
 Thumbs.db
 *.opju
+!/docs/figures/origin/SCAMP-Trie.opju

@@ -49,6 +49,7 @@ scamptrie/
 ├── weights/                # Pre-computed SCAMP-Trie weights
 ├── ratio/                  # Storage allocation ratios
 ├── docs/                   # Supplementary documentation
+│   └── figures/origin/SCAMP-Trie.opju  # Original plotting data and editable graphs from the paper
 ├── datagen/                # Synthetic data generators
 ├── legacy/                 # Historical predecessor version
 ├── output/                 # Algorithm outputs (generated at runtime)
@@ -238,6 +239,12 @@ Read `TotalEfficiency` in `result/scamp-trie.csv` and `result/scamp-trie-basic.c
 - **SCAMP-Trie-Basic (§3.2)** maps each node to the lowest legal stage, with enough logical capacity at each stage for the entire node pool. This removes capacity pressure during mapping while keeping the node representation, hash and free-child handling shared with SCAMP-Trie. The naive allocation is computed **after mapping** from peak relative stage demand across the four training FIBs. The five-line files in `output/scamptrie-basic/` supply actual usage, and `ratio/scamptrie-basic` supplies the allocation for reporting. To evaluate a single FIB, use `bash scripts/launch.sh -a scamptrie-basic -d rrc00_v6` followed by `python3 scripts/util.py scamptrie-basic`.
 
 ### Paper figures
+
+The [SCAMP-Trie Origin project](docs/figures/origin/SCAMP-Trie.opju) contains
+the original data used to plot the figures in the paper and the corresponding
+editable Origin graphs. The authors prepared these figures with
+**Origin 2021 SR0 for Windows (64-bit, build 9.8.0.200)**.
+Download the project and open it in Origin to inspect the data or edit the graphs.
 
 After the four-FIB sequence, run `python3 scripts/plot_storage.py`. It writes a four-FIB preview of the memory utilization comparison and the four stage-usage panels for BiOLP, 2-phase, Poptrie and SCAMP-Trie. The two SVGs are in `result/figures/`.
 
